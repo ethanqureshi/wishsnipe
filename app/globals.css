@@ -150,6 +150,50 @@ main, nav, header, section, div { position: relative; z-index: 1; }
 }
 .input-dark::placeholder { color: var(--text-muted); }
 
+/* ── Vignette ── */
+.vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 50%, transparent 40%, rgba(2,3,10,0.55) 100%);
+}
+
+/* ── Scanlines on card image ── */
+.scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.055) 2px,
+    rgba(0,0,0,0.055) 4px
+  );
+}
+.scanlines { position: relative; }
+
+/* ── Card title hover glow ── */
+.game-card:hover .card-title {
+  color: var(--amber-bright) !important;
+  text-shadow: 0 0 14px rgba(245,158,11,0.30);
+  transition: color 0.2s, text-shadow 0.2s;
+}
+.card-title { transition: color 0.2s, text-shadow 0.2s; }
+
+/* ── Price pulse at historical low ── */
+@keyframes price-pulse {
+  0%, 100% { opacity: 1; filter: none; }
+  50% { opacity: 0.75; filter: drop-shadow(0 0 5px rgba(251,191,36,0.7)); }
+}
+.price-at-low { animation: price-pulse 2.2s ease-in-out infinite; }
+
+/* ── Refresh button spin ── */
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -157,29 +201,25 @@ main, nav, header, section, div { position: relative; z-index: 1; }
 
 /* ── Mobile responsive ── */
 @media (max-width: 768px) {
-  /* Dashboard card grid responsive */
   .dashboard-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important;
-    gap: 14px !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
   }
-
-  /* Nav shrink */
-  .nav-inner {
-    padding: 0 16px !important;
-    gap: 8px !important;
-  }
-
-  /* Email settings compact */
-  .input-dark[type="email"] { width: 150px; }
-
   .game-card { border-radius: 10px; }
   .card-enter { animation-delay: 0ms !important; }
+  /* Hide email settings form on mobile — shown via toggle */
+  .email-settings-form { display: none !important; }
+  .email-settings-toggle { display: flex !important; }
 }
 
 @media (max-width: 480px) {
   .dashboard-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-columns: 1fr !important;
     gap: 10px !important;
   }
-  .input-dark[type="email"] { width: 110px; font-size: 12px; }
+}
+
+@media (min-width: 769px) {
+  .email-settings-form { display: flex !important; }
+  .email-settings-toggle { display: none !important; }
 }

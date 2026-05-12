@@ -5,6 +5,7 @@ import { useState } from "react"
 export function EmailSettings({ currentEmail }: { currentEmail: string | null }) {
   const [email, setEmail] = useState(currentEmail ?? "")
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   async function save() {
     setStatus("saving")
@@ -17,7 +18,7 @@ export function EmailSettings({ currentEmail }: { currentEmail: string | null })
     setTimeout(() => setStatus("idle"), 2200)
   }
 
-  return (
+  const form = (
     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
       <input
         type="email"
@@ -28,7 +29,7 @@ export function EmailSettings({ currentEmail }: { currentEmail: string | null })
         autoComplete="off"
         suppressHydrationWarning
         className="input-dark"
-        style={{ padding: "7px 12px", fontSize: "13px", width: "210px" }}
+        style={{ padding: "7px 12px", fontSize: "13px", width: "200px" }}
       />
       <button
         onClick={save}
@@ -36,21 +37,16 @@ export function EmailSettings({ currentEmail }: { currentEmail: string | null })
         style={{
           padding: "7px 14px",
           background:
-            status === "saved"
-              ? "rgba(74,222,128,0.12)"
-              : status === "error"
-              ? "rgba(248,113,113,0.12)"
-              : "rgba(245,158,11,0.10)",
+            status === "saved" ? "rgba(74,222,128,0.12)"
+            : status === "error" ? "rgba(248,113,113,0.12)"
+            : "rgba(245,158,11,0.10)",
           border: `1px solid ${
-            status === "saved"
-              ? "rgba(74,222,128,0.35)"
-              : status === "error"
-              ? "rgba(248,113,113,0.35)"
-              : "rgba(245,158,11,0.30)"
+            status === "saved" ? "rgba(74,222,128,0.35)"
+            : status === "error" ? "rgba(248,113,113,0.35)"
+            : "rgba(245,158,11,0.30)"
           }`,
           borderRadius: "8px",
-          color:
-            status === "saved" ? "#4ade80" : status === "error" ? "#f87171" : "var(--amber)",
+          color: status === "saved" ? "#4ade80" : status === "error" ? "#f87171" : "var(--amber)",
           fontSize: "13px",
           fontWeight: 600,
           fontFamily: "var(--font-body)",
@@ -63,6 +59,49 @@ export function EmailSettings({ currentEmail }: { currentEmail: string | null })
         {status === "saving" ? "Saving…" : status === "saved" ? "Saved ✓" : status === "error" ? "Error" : "Save"}
       </button>
     </div>
+  )
+
+  return (
+    <>
+      {/* Desktop: always visible */}
+      <div className="email-settings-form">{form}</div>
+
+      {/* Mobile: toggle behind bell icon */}
+      <div className="email-settings-toggle" style={{ display: "none", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+        <button
+          onClick={() => setMobileOpen((o) => !o)}
+          style={{
+            background: currentEmail ? "rgba(245,158,11,0.10)" : "transparent",
+            border: `1px solid ${currentEmail ? "rgba(245,158,11,0.30)" : "var(--border)"}`,
+            borderRadius: "6px",
+            padding: "5px 10px",
+            color: currentEmail ? "var(--amber)" : "var(--text-muted)",
+            cursor: "pointer",
+            fontSize: "16px",
+            lineHeight: 1,
+          }}
+          title="Alert email settings"
+        >
+          🔔
+        </button>
+        {mobileOpen && (
+          <div style={{
+            position: "absolute",
+            top: "56px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "var(--surface)",
+            border: "1px solid var(--border-strong)",
+            borderRadius: "10px",
+            padding: "12px",
+            zIndex: 100,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          }}>
+            {form}
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 

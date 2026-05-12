@@ -13,6 +13,8 @@ import {
 import { lookupItadIds, fetchHistoricalLows, getDealBadge, type DealBadge } from "@/lib/itad"
 import { supabaseAdmin } from "@/lib/supabase"
 import { EmailSettings, ThresholdInput } from "./AlertControls"
+import { HUDBackground } from "./HUDBackground"
+import { RefreshButton } from "./RefreshButton"
 
 export default async function Dashboard() {
   const session = await getServerSession(authOptions)
@@ -82,8 +84,13 @@ export default async function Dashboard() {
     )
   )
 
+  const totalValue = games.reduce((sum, g) => sum + (g.currentPrice ?? 0), 0)
+  const activeAlerts = [...thresholdMap.values()].filter((v) => v !== null).length
+
   return (
     <div style={{ minHeight: "100vh" }}>
+      <HUDBackground />
+      <div className="vignette" aria-hidden />
       {/* ── Nav ── */}
       <nav
         style={{
@@ -190,27 +197,28 @@ export default async function Dashboard() {
         }}
       >
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            gap: "12px",
-            marginBottom: "32px",
-          }}
-        >
-          <h1
-            className="font-display"
-            style={{ fontSize: "32px", letterSpacing: "0.04em", color: "var(--text)" }}
-          >
-            WISHLIST
-          </h1>
-          {wishlistItems.length > 0 && (
-            <span
-              className="font-mono"
-              style={{ color: "var(--text-muted)", fontSize: "12px", letterSpacing: "0.08em" }}
+        <div style={{ marginBottom: "32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "10px" }}>
+            <h1
+              className="font-display"
+              style={{ fontSize: "32px", letterSpacing: "0.04em", color: "var(--text)" }}
             >
-              {wishlistItems.length} GAMES
-            </span>
+              WISHLIST
+            </h1>
+            <RefreshButton />
+          </div>
+          {/* Amber rule */}
+          <div style={{ height: "1px", background: "linear-gradient(to right, rgba(245,158,11,0.5), transparent)", marginBottom: "10px" }} />
+          {/* Live stats */}
+          {wishlistItems.length > 0 && (
+            <div
+              className="font-mono"
+              style={{ color: "var(--text-dim)", fontSize: "11px", letterSpacing: "0.08em", display: "flex", gap: "16px", flexWrap: "wrap" }}
+            >
+              <span>{wishlistItems.length} GAMES</span>
+              {totalValue > 0 && <span>{formatPrice(totalValue)} TOTAL</span>}
+              <span>{activeAlerts} ACTIVE ALERT{activeAlerts !== 1 ? "S" : ""}</span>
+            </div>
           )}
         </div>
 
@@ -218,6 +226,44 @@ export default async function Dashboard() {
           <EmptyState message="No wishlist items found" sub="Make your Steam wishlist Public in privacy settings." />
         ) : games.length === 0 ? (
           <EmptyState message="Couldn't load game details" sub="Try refreshing the page." />
+        ) : games.length < 5 ? (
+          <>
+            <div
+              style={{
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderLeft: "3px solid rgba(245,158,11,0.4)",
+                borderRadius: "10px",
+                padding: "16px 20px",
+                marginBottom: "24px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "16px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <p style={{ color: "var(--text)", fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>
+                  Your wishlist looks a little empty.
+                </p>
+                <p style={{ color: "var(--text-muted)", fontSize: "13px" }}>
+                  Add games on Steam and hit refresh.
+                </p>
+              </div>
+              <RefreshButton />
+            </div>
+            <div className="dashboard-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
+              {games.map((game, i) => {
+                const low = freshLows.get(game.appid)
+                return (
+                  <GameCard key={game.appid} game={game} historicalLow={low?.lowPrice ?? null}
+                    historicalLowShop={low?.lowShop ?? null} hasItadData={itadChecked.has(game.appid)}
+                    threshold={thresholdMap.get(game.appid) ?? null} index={i} />
+                )
+              })}
+            </div>
+          </>
         ) : (
           <>
             <div
@@ -332,6 +378,11 @@ function GameCard({
   const cfg = BADGE_CONFIG[badge]
   const isOnSale = game.discountPercent > 0
   const storeUrl = `https://store.steampowered.com/app/${game.appid}`
+  const isAtHistoricalLow = historicalLow !== null && game.currentPrice !== null && game.currentPrice <= historicalLow
+
+  const leftBorderColor = hasItadData
+    ? (badge ? cfg.text : "rgba(80,90,120,0.35)")
+    : (isOnSale ? "rgba(251,146,60,0.5)" : "rgba(60,70,100,0.3)")
 
   return (
     <div
@@ -342,11 +393,12 @@ function GameCard({
         "--card-glow-shadow": cfg.shadow,
         display: "flex",
         flexDirection: "column",
+        borderLeft: `3px solid ${leftBorderColor}`,
       } as React.CSSProperties}
     >
       {/* Image */}
       <a href={storeUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", position: "relative" }}>
-        <div style={{ position: "relative", minHeight: "160px", aspectRatio: "460/215", overflow: "hidden", background: "var(--surface-2)" }}>
+        <div className="scanlines" style={{ position: "relative", minHeight: "160px", aspectRatio: "460/215", overflow: "hidden", background: "var(--surface-2)" }}>
           <img
             src={game.headerImage}
             alt={game.name}
@@ -393,6 +445,7 @@ function GameCard({
           href={storeUrl}
           target="_blank"
           rel="noopener noreferrer"
+          className="card-title"
           style={{
             color: "var(--text)",
             textDecoration: "none",
@@ -424,7 +477,7 @@ function GameCard({
           ) : (
             <>
               <span
-                className="font-mono"
+                className={`font-mono${isAtHistoricalLow ? " price-at-low" : ""}`}
                 style={{
                   fontSize: "16px",
                   fontWeight: 700,
