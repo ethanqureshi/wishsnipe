@@ -1,0 +1,564 @@
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { redirect } from "next/navigation"
+import { fetchWishlist, fetchGameDetails, formatPrice, type GameDetails } from "@/lib/steam"
+import {
+  upsertUser,
+  upsertGames,
+  upsertWishlistItems,
+  insertPriceSnapshots,
+  upsertHistoricalLows,
+  getStoredHistoricalLows,
+} from "@/lib/db"
+import { lookupItadIds, fetchHistoricalLows, getDealBadge, type DealBadge } from "@/lib/itad"
+import { supabaseAdmin } from "@/lib/supabase"
+import { EmailSettings, ThresholdInput } from "./AlertControls"
+
+export default async function Dashboard() {
+  const session = await getServerSession(authOptions)
+  if (!session) redirect("/")
+
+  const steamId = session.user.steamId
+  await upsertUser(steamId, session.user.name ?? "", session.user.image ?? "")
+
+  const wishlistItems = await fetchWishlist(steamId)
+  const sorted = [...wishlistItems].sort((a, b) => a.priority - b.priority)
+  const appids = sorted.slice(0, 20).map((i) => i.appid)
+  const games = appids.length > 0 ? await fetchGameDetails(appids) : []
+
+  await Promise.all([
+    upsertWishlistItems(steamId, wishlistItems),
+    upsertGames(games).then(() => insertPriceSnapshots(games)),
+  ])
+
+  const stored = await getStoredHistoricalLows(appids)
+  const staleThreshold = Date.now() - 24 * 60 * 60 * 1000
+  const needsRefresh = appids.filter((id) => {
+    const row = stored.get(id)
+    return !row || new Date(row.updatedAt).getTime() < staleThreshold
+  })
+  console.log(`[dashboard] ITAD_API_KEY set: ${!!process.env.ITAD_API_KEY}, needsRefresh: ${needsRefresh.length}/${appids.length}`)
+  // appids we've attempted an ITAD lookup for this render
+  const itadAttempted = new Set<number>(needsRefresh)
+
+  if (needsRefresh.length > 0) {
+    const itadIdMap = await lookupItadIds(needsRefresh)
+    console.log(`[dashboard] ITAD lookup found ${itadIdMap.size}/${needsRefresh.length} games`)
+    const lows = await fetchHistoricalLows([...itadIdMap.values()])
+    console.log(`[dashboard] ITAD historical lows fetched: ${lows.size}`)
+    const toStore = [...itadIdMap.entries()]
+      .map(([appid, itadId]) => {
+        const low = lows.get(itadId)
+        return low ? { appid, ...low } : null
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+    console.log(`[dashboard] storing ${toStore.length} historical lows`)
+    if (toStore.length > 0) await upsertHistoricalLows(toStore)
+  }
+  const freshLows = await getStoredHistoricalLows(appids)
+  // A game "has ITAD data" if we have a stored low OR if we just attempted a lookup
+  // (covering games not on ITAD — shows "No price history" instead of "Checking...")
+  const itadChecked = new Set([...freshLows.keys(), ...itadAttempted])
+  console.log(`[dashboard] freshLows available: ${freshLows.size}/${appids.length}, itadChecked: ${itadChecked.size}`)
+
+  const { data: userData } = await supabaseAdmin
+    .from("users")
+    .select("alert_email")
+    .eq("steam_id", steamId)
+    .single()
+
+  const { data: thresholdRows } = await supabaseAdmin
+    .from("wishlist_items")
+    .select("appid, alert_threshold_price")
+    .eq("steam_id", steamId)
+    .in("appid", appids)
+
+  const thresholdMap = new Map(
+    (thresholdRows ?? []).map(
+      (r: { appid: number; alert_threshold_price: number | null }) => [
+        r.appid,
+        r.alert_threshold_price,
+      ]
+    )
+  )
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      {/* ── Nav ── */}
+      <nav
+        style={{
+          borderBottom: "1px solid var(--border)",
+          background: "rgba(2,3,10,0.85)",
+          backdropFilter: "blur(12px)",
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1400px",
+            margin: "0 auto",
+            padding: "0 24px",
+            height: "56px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "16px",
+          }}
+        >
+          {/* Wordmark */}
+          <span
+            className="font-display"
+            style={{
+              fontSize: "26px",
+              letterSpacing: "0.06em",
+              background: "linear-gradient(135deg, #fff 0%, var(--amber) 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              flexShrink: 0,
+            }}
+          >
+            WISHSNIPE
+          </span>
+
+          {/* Email settings */}
+          <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+            <EmailSettings currentEmail={userData?.alert_email ?? null} />
+          </div>
+
+          {/* User info */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              flexShrink: 0,
+            }}
+          >
+            {session.user?.image && (
+              <img
+                src={session.user.image}
+                alt={session.user.name ?? "avatar"}
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
+                  border: "1px solid var(--border-strong)",
+                }}
+              />
+            )}
+            <span
+              style={{
+                color: "var(--text-muted)",
+                fontSize: "13px",
+                maxWidth: "120px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {session.user?.name}
+            </span>
+            <a
+              href="/signout"
+              style={{
+                color: "var(--text-muted)",
+                fontSize: "12px",
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.05em",
+                textDecoration: "none",
+                padding: "4px 8px",
+                border: "1px solid var(--border)",
+                borderRadius: "6px",
+                transition: "border-color 0.2s, color 0.2s",
+              }}
+            >
+              EXIT
+            </a>
+          </div>
+        </div>
+      </nav>
+
+      {/* ── Content ── */}
+      <div
+        style={{
+          maxWidth: "1400px",
+          margin: "0 auto",
+          padding: "40px 24px 64px",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: "12px",
+            marginBottom: "32px",
+          }}
+        >
+          <h1
+            className="font-display"
+            style={{ fontSize: "32px", letterSpacing: "0.04em", color: "var(--text)" }}
+          >
+            WISHLIST
+          </h1>
+          {wishlistItems.length > 0 && (
+            <span
+              className="font-mono"
+              style={{ color: "var(--text-muted)", fontSize: "12px", letterSpacing: "0.08em" }}
+            >
+              {wishlistItems.length} GAMES
+            </span>
+          )}
+        </div>
+
+        {wishlistItems.length === 0 ? (
+          <EmptyState message="No wishlist items found" sub="Make your Steam wishlist Public in privacy settings." />
+        ) : games.length === 0 ? (
+          <EmptyState message="Couldn't load game details" sub="Try refreshing the page." />
+        ) : (
+          <>
+            <div
+              className="dashboard-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                gap: "20px",
+              }}
+            >
+              {games.map((game, i) => {
+                const low = freshLows.get(game.appid)
+                return (
+                  <GameCard
+                    key={game.appid}
+                    game={game}
+                    historicalLow={low?.lowPrice ?? null}
+                    historicalLowShop={low?.lowShop ?? null}
+                    hasItadData={itadChecked.has(game.appid)}
+                    threshold={thresholdMap.get(game.appid) ?? null}
+                    index={i}
+                  />
+                )
+              })}
+            </div>
+            {wishlistItems.length > 20 && (
+              <p
+                className="font-mono"
+                style={{
+                  textAlign: "center",
+                  color: "var(--text-dim)",
+                  fontSize: "11px",
+                  letterSpacing: "0.08em",
+                  marginTop: "40px",
+                }}
+              >
+                SHOWING 20 OF {wishlistItems.length} — FULL LIST COMING SOON
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ── Badge config ── */
+const BADGE_CONFIG: Record<
+  DealBadge,
+  { bg: string; text: string; glow: string; shadow: string }
+> = {
+  "Historical Low 🎯": {
+    bg: "rgba(251,191,36,0.12)",
+    text: "#fbbf24",
+    glow: "rgba(251,191,36,0.35)",
+    shadow: "rgba(251,191,36,0.15)",
+  },
+  "Never Been Cheaper ⚡": {
+    bg: "rgba(192,132,252,0.12)",
+    text: "#c084fc",
+    glow: "rgba(192,132,252,0.35)",
+    shadow: "rgba(192,132,252,0.15)",
+  },
+  "Near Low 💚": {
+    bg: "rgba(52,211,153,0.10)",
+    text: "#34d399",
+    glow: "rgba(52,211,153,0.30)",
+    shadow: "rgba(52,211,153,0.12)",
+  },
+  "Good Deal 👍": {
+    bg: "rgba(74,222,128,0.08)",
+    text: "#4ade80",
+    glow: "rgba(74,222,128,0.25)",
+    shadow: "rgba(74,222,128,0.10)",
+  },
+  "Average Deal 🟡": {
+    bg: "rgba(251,146,60,0.08)",
+    text: "#fb923c",
+    glow: "rgba(251,146,60,0.20)",
+    shadow: "rgba(251,146,60,0.08)",
+  },
+  "Wait 🔴": {
+    bg: "rgba(248,113,113,0.08)",
+    text: "#f87171",
+    glow: "rgba(248,113,113,0.20)",
+    shadow: "rgba(248,113,113,0.08)",
+  },
+  "": {
+    bg: "transparent",
+    text: "var(--text-muted)",
+    glow: "rgba(255,255,255,0.07)",
+    shadow: "transparent",
+  },
+}
+
+function GameCard({
+  game,
+  historicalLow,
+  historicalLowShop,
+  hasItadData,
+  threshold,
+  index,
+}: {
+  game: GameDetails
+  historicalLow: number | null
+  historicalLowShop: string | null
+  hasItadData: boolean
+  threshold: number | null
+  index: number
+}) {
+  const badge = getDealBadge(game.currentPrice, historicalLow, game.discountPercent)
+  const cfg = BADGE_CONFIG[badge]
+  const isOnSale = game.discountPercent > 0
+  const storeUrl = `https://store.steampowered.com/app/${game.appid}`
+
+  return (
+    <div
+      className="game-card card-enter"
+      style={{
+        animationDelay: `${index * 55}ms`,
+        "--card-glow": cfg.glow,
+        "--card-glow-shadow": cfg.shadow,
+        display: "flex",
+        flexDirection: "column",
+      } as React.CSSProperties}
+    >
+      {/* Image */}
+      <a href={storeUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", position: "relative" }}>
+        <div style={{ position: "relative", minHeight: "160px", aspectRatio: "460/215", overflow: "hidden", background: "var(--surface-2)" }}>
+          <img
+            src={game.headerImage}
+            alt={game.name}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            loading="lazy"
+          />
+          {/* Gradient overlay for text legibility */}
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "linear-gradient(to top, rgba(2,3,10,0.85) 0%, transparent 55%)",
+            }}
+          />
+          {/* Discount badge */}
+          {isOnSale && (
+            <div
+              style={{
+                position: "absolute",
+                top: "8px",
+                right: "8px",
+                background: "rgba(2,3,10,0.85)",
+                border: "1px solid rgba(74,222,128,0.4)",
+                borderRadius: "5px",
+                padding: "2px 7px",
+                fontSize: "11px",
+                fontWeight: 700,
+                color: "#4ade80",
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.02em",
+              }}
+            >
+              -{game.discountPercent}%
+            </div>
+          )}
+        </div>
+      </a>
+
+      {/* Card body */}
+      <div style={{ padding: "12px 14px 8px", flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+        {/* Game name */}
+        <a
+          href={storeUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: "var(--text)",
+            textDecoration: "none",
+            fontSize: "13px",
+            fontWeight: 600,
+            lineHeight: 1.35,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {game.name}
+        </a>
+
+        {/* Price row */}
+        <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+          {game.isFree ? (
+            <span
+              className="font-mono"
+              style={{ color: "#4ade80", fontSize: "15px", fontWeight: 700 }}
+            >
+              FREE
+            </span>
+          ) : game.currentPrice == null ? (
+            <span className="font-mono" style={{ color: "var(--text-muted)", fontSize: "13px" }}>
+              N/A
+            </span>
+          ) : (
+            <>
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 700,
+                  color: isOnSale ? "#4ade80" : "var(--text)",
+                }}
+              >
+                {formatPrice(game.currentPrice)}
+              </span>
+              {isOnSale && game.originalPrice && (
+                <span
+                  className="font-mono"
+                  style={{
+                    fontSize: "11px",
+                    color: "var(--text-muted)",
+                    textDecoration: "line-through",
+                  }}
+                >
+                  {formatPrice(game.originalPrice)}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Deal badge */}
+        {hasItadData ? (
+          badge ? (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "3px 8px",
+                background: cfg.bg,
+                border: `1px solid ${cfg.glow}`,
+                borderRadius: "5px",
+                fontSize: "11px",
+                fontWeight: 600,
+                color: cfg.text,
+                letterSpacing: "0.01em",
+                alignSelf: "flex-start",
+                fontFamily: "var(--font-body)",
+              }}
+            >
+              {badge}
+            </div>
+          ) : null
+        ) : (
+          // No ITAD data — Steam-only fallback badge
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "3px 8px",
+              background: isOnSale ? "rgba(251,146,60,0.08)" : "rgba(100,110,140,0.08)",
+              border: `1px solid ${isOnSale ? "rgba(251,146,60,0.25)" : "rgba(100,110,140,0.20)"}`,
+              borderRadius: "5px",
+              fontSize: "11px",
+              fontWeight: 600,
+              color: isOnSale ? "#fb923c" : "#4a5280",
+              letterSpacing: "0.01em",
+              alignSelf: "flex-start",
+              fontFamily: "var(--font-body)",
+            }}
+          >
+            {isOnSale ? `On Sale −${game.discountPercent}%` : "Full Price"}
+          </div>
+        )}
+
+        {/* Historical low */}
+        <div
+          style={{
+            fontSize: "11px",
+            color: "var(--text-muted)",
+            fontFamily: "var(--font-mono)",
+            letterSpacing: "0.01em",
+            marginTop: "auto",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          {!hasItadData ? (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "2px 6px",
+                background: "rgba(100,110,140,0.07)",
+                border: "1px solid rgba(100,110,140,0.18)",
+                borderRadius: "4px",
+                color: "#3a4060",
+                fontSize: "10px",
+                fontWeight: 600,
+                letterSpacing: "0.06em",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              NO HISTORY
+            </span>
+          ) : historicalLow !== null ? (
+            <>
+              <span style={{ color: "var(--text-dim)" }}>ALL-TIME LOW </span>
+              <span style={{ color: "var(--col-hist)" }}>
+                {formatPrice(historicalLow)}
+              </span>
+              {historicalLowShop && (
+                <span style={{ color: "var(--text-dim)" }}> · {historicalLowShop}</span>
+              )}
+            </>
+          ) : (
+            <span style={{ color: "var(--text-dim)" }}>No price history</span>
+          )}
+        </div>
+      </div>
+
+      {/* Alert input */}
+      <ThresholdInput appid={game.appid} currentThreshold={threshold} />
+    </div>
+  )
+}
+
+function EmptyState({ message, sub }: { message: string; sub: string }) {
+  return (
+    <div
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: "12px",
+        padding: "60px 40px",
+        textAlign: "center",
+      }}
+    >
+      <p style={{ color: "var(--text)", fontWeight: 600, marginBottom: "8px" }}>{message}</p>
+      <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>{sub}</p>
+    </div>
+  )
+}

@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(vercel *)",
+      "Bash(curl *)",
+      "Bash(Select-String -Pattern \"WishSnipe|error|Error|500\")",
+      "mcp__plugin_context-mode_context-mode__ctx_execute",
+      "Bash(echo \"LOG_PID=$!\")",
+      "Bash(echo \"streaming PID=$!\")",
+      "Bash(higgsfield --help)",
+      "Bash(higgsfield model *)",
+      "Bash(higgsfield auth *)",
+      "Bash(higgsfield account *)",
+      "Bash(higgsfield generate *)",
+      "Bash(python3 -c ' *)",
+      "PowerShell(Invoke-WebRequest -Uri \"https://d8j0ntlcm91z4.cloudfront.net/user_3DJQ9jdIQVoqgbWZxGiRlUPy7XX/hf_20260512_212715_142cbca5-a8fe-481a-89fd-72f371ad9925.mp4\" -OutFile \"C:\\\\Users\\\\ethan\\\\wishsnipe\\\\public\\\\videos\\\\gaming1.mp4\" -UseBasicParsing; Write-Host \"gaming1 done: $\\(\\(Get-Item 'C:\\\\Users\\\\ethan\\\\wishsnipe\\\\public\\\\videos\\\\gaming1.mp4'\\).Length\\) bytes\")",
+      "PowerShell(Invoke-WebRequest -Uri \"https://d8j0ntlcm91z4.cloudfront.net/user_3DJQ9jdIQVoqgbWZxGiRlUPy7XX/hf_20260512_212722_69dacc09-eb34-4e49-bcd2-5449245f9b7a.mp4\" -OutFile \"C:\\\\Users\\\\ethan\\\\wishsnipe\\\\public\\\\videos\\\\gaming2.mp4\" -UseBasicParsing; Write-Host \"gaming2 done: $\\(\\(Get-Item 'C:\\\\Users\\\\ethan\\\\wishsnipe\\\\public\\\\videos\\\\gaming2.mp4'\\).Length\\) bytes\")",
+      "Bash(Select-String \"dashboard|itad|ITAD|error|Error\")",
+      "Bash(Select-Object -First 40)",
+      "Bash(Get-Content \"C:\\\\Users\\\\ethan\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-ethan-wishsnipe\\\\a220d767-8ebc-4b92-9b05-4a8fddcc3cc5\\\\tasks\\\\busfe86b4.output\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -First 60)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "context-mode"
+  ]
+}

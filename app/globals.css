@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+:root {
+  --font-display: var(--font-display, "Bebas Neue", cursive);
+  --font-body: var(--font-body, "Outfit", sans-serif);
+  --font-mono: var(--font-mono, "Space Mono", monospace);
+
+  --bg: #02030a;
+  --surface: #07080f;
+  --surface-2: #0b0d17;
+  --surface-3: #10121e;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.13);
+
+  --text: #dde1f0;
+  --text-muted: #5a6080;
+  --text-dim: #252a3d;
+
+  --amber: #f59e0b;
+  --amber-bright: #fbbf24;
+
+  /* Deal quality palette */
+  --col-never: #c084fc;
+  --col-hist: #fbbf24;
+  --col-near: #34d399;
+  --col-good: #4ade80;
+  --col-avg: #fb923c;
+  --col-wait: #f87171;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* Dot grid */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Film grain overlay */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.22;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+}
+
+/* Everything above grain */
+main, nav, header, section, div { position: relative; z-index: 1; }
+
+/* ── Typography helpers ── */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+}
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* ── Game card ── */
+.game-card {
+  background: var(--surface);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 0 0 transparent;
+  will-change: transform;
+}
+.game-card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 0 0 1px var(--card-glow, rgba(255, 255, 255, 0.1)),
+    0 8px 32px var(--card-glow-shadow, rgba(0, 0, 0, 0.5));
+}
+
+/* ── Card entrance animation ── */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card-enter {
+  opacity: 0;
+  animation: card-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Pulse animation for save buttons ── */
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
+  70%  { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+.pulse-save { animation: pulse-ring 0.5s ease-out; }
+
+/* ── Steam login button ── */
+.btn-steam {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 28px;
+  background: rgba(245, 158, 11, 0.07);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 10px;
+  color: var(--amber);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.btn-steam:hover {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.6);
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.18);
+  transform: translateY(-1px);
+}
+
+/* ── Input base ── */
+.input-dark {
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font-body);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+.input-dark:focus {
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.08);
+}
+.input-dark::placeholder { color: var(--text-muted); }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+/* ── Mobile responsive ── */
+@media (max-width: 768px) {
+  /* Dashboard card grid responsive */
+  .dashboard-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important;
+    gap: 14px !important;
+  }
+
+  /* Nav shrink */
+  .nav-inner {
+    padding: 0 16px !important;
+    gap: 8px !important;
+  }
+
+  /* Email settings compact */
+  .input-dark[type="email"] { width: 150px; }
+
+  .game-card { border-radius: 10px; }
+  .card-enter { animation-delay: 0ms !important; }
+}
+
+@media (max-width: 480px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+  .input-dark[type="email"] { width: 110px; font-size: 12px; }
+}
