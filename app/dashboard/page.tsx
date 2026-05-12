@@ -21,59 +21,58 @@ export default async function Dashboard() {
   if (!session) redirect("/")
 
   const steamId = session.user.steamId
-  await upsertUser(steamId, session.user.name ?? "", session.user.image ?? "")
 
-  const wishlistItems = await fetchWishlist(steamId)
-  const sorted = [...wishlistItems].sort((a, b) => a.priority - b.priority)
-  const appids = sorted.slice(0, 20).map((i) => i.appid)
-  const games = appids.length > 0 ? await fetchGameDetails(appids) : []
-
-  await Promise.all([
-    upsertWishlistItems(steamId, wishlistItems),
-    upsertGames(games).then(() => insertPriceSnapshots(games)),
+  // Phase 1: wishlist + upsert user in parallel
+  const [wishlistItems] = await Promise.all([
+    fetchWishlist(steamId),
+    upsertUser(steamId, session.user.name ?? "", session.user.image ?? ""),
   ])
 
-  const stored = await getStoredHistoricalLows(appids)
+  const sorted = [...wishlistItems].sort((a, b) => a.priority - b.priority)
+  const appids = sorted.slice(0, 20).map((i) => i.appid)
+
+  // Phase 2: Steam prices + ITAD cache + user data + thresholds — all parallel
+  const [games, stored, { data: userData }, { data: thresholdRows }] = await Promise.all([
+    appids.length > 0 ? fetchGameDetails(appids) : Promise.resolve([]),
+    getStoredHistoricalLows(appids),
+    supabaseAdmin.from("users").select("alert_email").eq("steam_id", steamId).single(),
+    appids.length > 0
+      ? supabaseAdmin
+          .from("wishlist_items")
+          .select("appid, alert_threshold_price")
+          .eq("steam_id", steamId)
+          .in("appid", appids)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  // Phase 3: DB writes + ITAD lookup — parallel
   const staleThreshold = Date.now() - 24 * 60 * 60 * 1000
   const needsRefresh = appids.filter((id) => {
     const row = stored.get(id)
     return !row || new Date(row.updatedAt).getTime() < staleThreshold
   })
-  console.log(`[dashboard] ITAD_API_KEY set: ${!!process.env.ITAD_API_KEY}, needsRefresh: ${needsRefresh.length}/${appids.length}`)
-  // appids we've attempted an ITAD lookup for this render
   const itadAttempted = new Set<number>(needsRefresh)
 
-  if (needsRefresh.length > 0) {
-    const itadIdMap = await lookupItadIds(needsRefresh)
-    console.log(`[dashboard] ITAD lookup found ${itadIdMap.size}/${needsRefresh.length} games`)
+  const [itadIdMap] = await Promise.all([
+    needsRefresh.length > 0 ? lookupItadIds(needsRefresh) : Promise.resolve(new Map<number, string>()),
+    upsertWishlistItems(steamId, wishlistItems),
+    games.length > 0 ? upsertGames(games).then(() => insertPriceSnapshots(games)) : Promise.resolve(),
+  ])
+
+  // Phase 4: fetch historical lows for newly found ITAD IDs
+  if (itadIdMap.size > 0) {
     const lows = await fetchHistoricalLows([...itadIdMap.values()])
-    console.log(`[dashboard] ITAD historical lows fetched: ${lows.size}`)
     const toStore = [...itadIdMap.entries()]
       .map(([appid, itadId]) => {
         const low = lows.get(itadId)
         return low ? { appid, ...low } : null
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
-    console.log(`[dashboard] storing ${toStore.length} historical lows`)
     if (toStore.length > 0) await upsertHistoricalLows(toStore)
   }
+
   const freshLows = await getStoredHistoricalLows(appids)
-  // A game "has ITAD data" if we have a stored low OR if we just attempted a lookup
-  // (covering games not on ITAD — shows "No price history" instead of "Checking...")
   const itadChecked = new Set([...freshLows.keys(), ...itadAttempted])
-  console.log(`[dashboard] freshLows available: ${freshLows.size}/${appids.length}, itadChecked: ${itadChecked.size}`)
-
-  const { data: userData } = await supabaseAdmin
-    .from("users")
-    .select("alert_email")
-    .eq("steam_id", steamId)
-    .single()
-
-  const { data: thresholdRows } = await supabaseAdmin
-    .from("wishlist_items")
-    .select("appid, alert_threshold_price")
-    .eq("steam_id", steamId)
-    .in("appid", appids)
 
   const thresholdMap = new Map(
     (thresholdRows ?? []).map(

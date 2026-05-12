@@ -47,14 +47,8 @@ async function fetchOneGame(appid: number): Promise<GameDetails | null> {
 }
 
 export async function fetchGameDetails(appids: number[]): Promise<GameDetails[]> {
-  const results: GameDetails[] = []
-  // 5 concurrent requests to avoid Steam rate limits
-  for (let i = 0; i < appids.length; i += 5) {
-    const batch = appids.slice(i, i + 5)
-    const settled = await Promise.all(batch.map(fetchOneGame))
-    results.push(...settled.filter((r): r is GameDetails => r !== null))
-  }
-  return results
+  const results = await Promise.all(appids.map(fetchOneGame))
+  return results.filter((r): r is GameDetails => r !== null)
 }
 
 export function formatPrice(cents: number): string {
