@@ -4,5 +4,10 @@
       "path": "/api/cron/check-prices",
       "schedule": "0 9 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "app/api/cron/check-prices/route.ts": {
+      "maxDuration": 60
+    }
+  }
 }

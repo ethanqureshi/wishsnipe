@@ -40,12 +40,8 @@ export async function GET(req: NextRequest) {
     console.log("[cron] appids count:", appids.length)
     if (appids.length === 0) return NextResponse.json({ ok: true, checked: 0 })
 
-    // 2. Fetch current Steam prices (sequential batches of 5 to avoid rate limits)
-    const games: GameDetails[] = []
-    for (let i = 0; i < appids.length; i += 5) {
-      const batch = await fetchGameDetails(appids.slice(i, i + 5))
-      games.push(...batch)
-    }
+    // 2. Fetch current Steam prices in parallel
+    const games = await fetchGameDetails(appids)
 
     const gameMap = new Map(games.map((g) => [g.appid, g]))
 
