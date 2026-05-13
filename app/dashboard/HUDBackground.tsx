@@ -23,14 +23,14 @@ export function HUDBackground() {
     resize()
     window.addEventListener("resize", resize)
 
-    const particles: Particle[] = Array.from({ length: 45 }, (_, i) => ({
+    const particles: Particle[] = Array.from({ length: 50 }, (_, i) => ({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
       vx: (Math.random() - 0.5) * 0.25,
       vy: (Math.random() - 0.5) * 0.25,
       type: i % 6 === 0 ? "cross" : i % 9 === 0 ? "hex" : "dot",
-      size: Math.random() * 6 + 3,
-      opacity: Math.random() * 0.12 + 0.07,
+      size: Math.random() * 7 + 3,
+      opacity: Math.random() * 0.15 + 0.10,
     }))
 
     function drawCross(x: number, y: number, s: number) {
@@ -86,7 +86,7 @@ export function HUDBackground() {
     <canvas
       ref={canvasRef}
       aria-hidden
-      style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}
+      style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none" }}
     />
   )
 }

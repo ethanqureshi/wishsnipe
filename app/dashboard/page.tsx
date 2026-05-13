@@ -16,6 +16,7 @@ import { supabaseAdmin } from "@/lib/supabase"
 import { EmailSettings, ThresholdInput } from "./AlertControls"
 import { HUDBackground } from "./HUDBackground"
 import { RefreshButton } from "./RefreshButton"
+import { SmallWishlistBanner } from "./SmallWishlistBanner"
 
 export default async function Dashboard() {
   const session = await getServerSession(authOptions)
@@ -237,31 +238,7 @@ export default async function Dashboard() {
           <EmptyState message="Couldn't load game details" sub="Try refreshing the page." />
         ) : games.length < 5 ? (
           <>
-            <div
-              style={{
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderLeft: "3px solid rgba(245,158,11,0.4)",
-                borderRadius: "10px",
-                padding: "16px 20px",
-                marginBottom: "24px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "16px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div>
-                <p style={{ color: "var(--text)", fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>
-                  Your wishlist looks a little empty.
-                </p>
-                <p style={{ color: "var(--text-muted)", fontSize: "13px" }}>
-                  Add games on Steam and hit refresh.
-                </p>
-              </div>
-              <RefreshButton />
-            </div>
+            <SmallWishlistBanner />
             <div className="dashboard-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
               {games.map((game, i) => {
                 const low = freshLows.get(game.appid)
