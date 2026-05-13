@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { stripe } from "@/lib/stripe"
+import { getStripe } from "@/lib/stripe"
 import { supabaseAdmin } from "@/lib/supabase"
 
 export const dynamic = "force-dynamic"
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   let event
   try {
     const rawBody = await req.arrayBuffer()
-    event = stripe.webhooks.constructEvent(Buffer.from(rawBody), sig, webhookSecret)
+    event = getStripe().webhooks.constructEvent(Buffer.from(rawBody), sig, webhookSecret)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error("[stripe/webhook] signature verification failed:", msg)
