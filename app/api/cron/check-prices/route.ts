@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase"
 import { fetchGameDetails, formatPrice, type GameDetails } from "@/lib/steam"
+import { upsertGames, insertPriceSnapshots } from "@/lib/db"
 import { lookupItadIds, fetchHistoricalLows } from "@/lib/itad"
 import { Resend } from "resend"
 import { render } from "@react-email/render"
@@ -37,27 +38,10 @@ export async function GET(req: NextRequest) {
 
   const gameMap = new Map(games.map((g) => [g.appid, g]))
 
-  // 3. Upsert metadata + insert snapshots
+  // 3. Upsert metadata + insert snapshots (upsertGames writes price cache columns)
   if (games.length > 0) {
-    await supabaseAdmin.from("games").upsert(
-      games.map((g) => ({
-        appid: g.appid,
-        name: g.name,
-        header_image: g.headerImage,
-        is_free: g.isFree,
-        updated_at: new Date().toISOString(),
-      })),
-      { onConflict: "appid" }
-    )
-    await supabaseAdmin.from("price_snapshots").insert(
-      games.map((g) => ({
-        appid: g.appid,
-        current_price: g.currentPrice,
-        original_price: g.originalPrice,
-        discount_percent: g.discountPercent,
-        is_free: g.isFree,
-      }))
-    )
+    await upsertGames(games)
+    await insertPriceSnapshots(games)
   }
 
   // 4. Refresh stale ITAD lows
