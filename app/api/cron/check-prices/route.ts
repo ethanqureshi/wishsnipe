@@ -14,20 +14,30 @@ function isAuthorized(req: NextRequest): boolean {
 }
 
 export async function GET(req: NextRequest) {
+  console.log("[cron] reached handler, CRON_SECRET length:", process.env.CRON_SECRET?.length ?? 0)
+
   if (!isAuthorized(req)) {
+    console.log("[cron] unauthorized — header:", req.headers.get("authorization")?.slice(0, 10))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
+
+  console.log("[cron] authorized, starting price check")
 
   try {
     const resend = new Resend(process.env.RESEND_API_KEY)
 
     // 1. Fetch all watched appids
+    console.log("[cron] querying wishlist_items")
     const { data: items, error } = await supabaseAdmin
       .from("wishlist_items")
       .select("appid, steam_id, alert_threshold_price, last_alerted_at")
-    if (error) return NextResponse.json({ error: "db_wishlist", detail: error.message }, { status: 500 })
+    if (error) {
+      console.log("[cron] wishlist_items error:", error.message)
+      return NextResponse.json({ error: "db_wishlist", detail: error.message }, { status: 500 })
+    }
 
     const appids = [...new Set((items ?? []).map((i: { appid: number }) => i.appid))]
+    console.log("[cron] appids count:", appids.length)
     if (appids.length === 0) return NextResponse.json({ ok: true, checked: 0 })
 
     // 2. Fetch current Steam prices (sequential batches of 5 to avoid rate limits)
