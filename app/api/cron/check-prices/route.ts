@@ -9,8 +9,12 @@ import { PriceAlertEmail } from "@/app/email/PriceAlert"
 
 export const dynamic = "force-dynamic"
 
+function clean(val: string | undefined): string {
+  return (val ?? "").replace(/^﻿/, "").trim()
+}
+
 function isAuthorized(req: NextRequest): boolean {
-  return req.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`
+  return req.headers.get("authorization") === `Bearer ${clean(process.env.CRON_SECRET)}`
 }
 
 export async function GET(req: NextRequest) {
@@ -24,7 +28,7 @@ export async function GET(req: NextRequest) {
   console.log("[cron] authorized, starting price check")
 
   try {
-    const resend = new Resend(process.env.RESEND_API_KEY)
+    const resend = new Resend(clean(process.env.RESEND_API_KEY))
 
     // 1. Fetch all watched appids
     console.log("[cron] querying wishlist_items")
