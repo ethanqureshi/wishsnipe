@@ -17,27 +17,36 @@ import { EmailSettings, ThresholdInput } from "./AlertControls"
 import { HUDBackground } from "./HUDBackground"
 import { RefreshButton } from "./RefreshButton"
 import { SmallWishlistBanner } from "./SmallWishlistBanner"
+import { UpgradeBanner } from "./UpgradeBanner"
 
-export default async function Dashboard() {
+export default async function Dashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ upgraded?: string }>
+}) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/")
 
   const steamId = session.user.steamId
+  const { upgraded } = await searchParams
 
-  // Phase 1: wishlist + upsert user in parallel
-  const [wishlistItems] = await Promise.all([
+  // Phase 1: wishlist + user data + upsert user — all parallel
+  const [wishlistItems, { data: userData }] = await Promise.all([
     fetchWishlist(steamId),
+    supabaseAdmin.from("users").select("alert_email, is_pro").eq("steam_id", steamId).single(),
     upsertUser(steamId, session.user.name ?? "", session.user.image ?? ""),
   ])
 
-  const sorted = [...wishlistItems].sort((a, b) => a.priority - b.priority)
-  const appids = sorted.slice(0, 20).map((i) => i.appid)
+  const isPro = (userData as { is_pro?: boolean } | null)?.is_pro ?? false
+  const gameLimit = isPro ? 20 : 5
 
-  // Phase 2: DB price cache + ITAD stored lows + user data + thresholds + wishlist write — all parallel
-  const [cachedPrices, stored, { data: userData }, { data: thresholdRows }] = await Promise.all([
+  const sorted = [...wishlistItems].sort((a, b) => a.priority - b.priority)
+  const appids = sorted.slice(0, gameLimit).map((i) => i.appid)
+
+  // Phase 2: DB price cache + ITAD stored lows + thresholds + wishlist write — all parallel
+  const [cachedPrices, stored, { data: thresholdRows }] = await Promise.all([
     getCachedGamePrices(appids),
     getStoredHistoricalLows(appids),
-    supabaseAdmin.from("users").select("alert_email").eq("steam_id", steamId).single(),
     appids.length > 0
       ? supabaseAdmin
           .from("wishlist_items")
@@ -178,6 +187,22 @@ export default async function Dashboard() {
             >
               {session.user?.name}
             </span>
+            {isPro && (
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  color: "var(--bg)",
+                  background: "var(--amber)",
+                  borderRadius: "4px",
+                  padding: "2px 5px",
+                }}
+              >
+                PRO
+              </span>
+            )}
             <a
               href="/signout"
               style={{
@@ -206,6 +231,27 @@ export default async function Dashboard() {
           padding: "40px 24px 64px",
         }}
       >
+        {/* Upgraded toast */}
+        {upgraded === "1" && (
+          <div
+            style={{
+              background: "rgba(245,158,11,0.08)",
+              border: "1px solid rgba(245,158,11,0.3)",
+              borderRadius: "10px",
+              padding: "14px 20px",
+              marginBottom: "20px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <span style={{ fontSize: "18px" }}>⚡</span>
+            <span style={{ color: "var(--amber)", fontWeight: 600, fontSize: "14px" }}>
+              Welcome to Pro! Unlimited games and instant alerts are now active.
+            </span>
+          </div>
+        )}
+
         {/* Header */}
         <div style={{ marginBottom: "32px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "10px" }}>
@@ -275,7 +321,10 @@ export default async function Dashboard() {
                 )
               })}
             </div>
-            {wishlistItems.length > 20 && (
+            {!isPro && wishlistItems.length > 5 && (
+              <UpgradeBanner lockedCount={wishlistItems.length - 5} />
+            )}
+            {isPro && wishlistItems.length > 20 && (
               <p
                 className="font-mono"
                 style={{
