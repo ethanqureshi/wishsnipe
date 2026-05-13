@@ -156,7 +156,9 @@ export default async function Dashboard({
           </div>
 
           {/* Go Pro button — free users only */}
-          {!isPro && <UpgradeButton />}
+          <div className="nav-upgrade-btn" style={{ flexShrink: 0 }}>
+            {!isPro && <UpgradeButton />}
+          </div>
 
           {/* User info */}
           <div
@@ -180,6 +182,7 @@ export default async function Dashboard({
               />
             )}
             <span
+              className="nav-username"
               style={{
                 color: "var(--text-muted)",
                 fontSize: "13px",
@@ -228,6 +231,7 @@ export default async function Dashboard({
 
       {/* ── Content ── */}
       <div
+        className="dashboard-content"
         style={{
           maxWidth: "1400px",
           margin: "0 auto",

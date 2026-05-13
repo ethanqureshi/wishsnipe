@@ -47,6 +47,7 @@ export function UpgradeBanner({ lockedCount }: { lockedCount: number }) {
       <button
         onClick={handleUpgrade}
         disabled={loading}
+        className="upgrade-banner-btn"
         style={{
           background: loading ? "rgba(245,158,11,0.07)" : "rgba(245,158,11,0.12)",
           border: "1px solid rgba(245,158,11,0.4)",

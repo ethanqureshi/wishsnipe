@@ -233,6 +233,13 @@ main, nav, header, section, div { position: relative; z-index: 1; }
   /* Hide email settings form on mobile — shown via toggle */
   .email-settings-form { display: none !important; }
   .email-settings-toggle { display: flex !important; }
+  /* Nav: hide upgrade button and username to prevent overflow */
+  .nav-upgrade-btn { display: none !important; }
+  .nav-username { display: none !important; }
+  /* Content area: tighter padding */
+  .dashboard-content { padding: 24px 16px 48px !important; }
+  /* Nav inner: tighter horizontal padding */
+  nav > div { padding: 0 12px !important; }
 }
 
 @media (max-width: 480px) {
@@ -240,6 +247,8 @@ main, nav, header, section, div { position: relative; z-index: 1; }
     grid-template-columns: 1fr !important;
     gap: 10px !important;
   }
+  /* Full-width upgrade card button on small screens */
+  .upgrade-banner-btn { width: 100% !important; justify-content: center !important; }
 }
 
 @media (min-width: 769px) {
