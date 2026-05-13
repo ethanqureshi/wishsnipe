@@ -1,6 +1,5 @@
 "use client"
 import { useState } from "react"
-import { RefreshButton } from "./RefreshButton"
 
 export function SmallWishlistBanner() {
   const [dismissed, setDismissed] = useState(false)
@@ -29,26 +28,23 @@ export function SmallWishlistBanner() {
           Add games on Steam and hit refresh.
         </p>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        <RefreshButton />
-        <button
-          onClick={() => setDismissed(true)}
-          aria-label="Dismiss"
-          style={{
-            background: "none",
-            border: "1px solid var(--border)",
-            borderRadius: "6px",
-            color: "var(--text-muted)",
-            cursor: "pointer",
-            fontSize: "16px",
-            lineHeight: 1,
-            padding: "4px 8px",
-            transition: "border-color 0.2s, color 0.2s",
-          }}
-        >
-          ×
-        </button>
-      </div>
+      <button
+        onClick={() => setDismissed(true)}
+        aria-label="Dismiss"
+        style={{
+          background: "none",
+          border: "1px solid var(--border)",
+          borderRadius: "6px",
+          color: "var(--text-muted)",
+          cursor: "pointer",
+          fontSize: "16px",
+          lineHeight: 1,
+          padding: "4px 8px",
+          transition: "border-color 0.2s, color 0.2s",
+        }}
+      >
+        ×
+      </button>
     </div>
   )
 }

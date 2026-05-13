@@ -18,6 +18,7 @@ import { HUDBackground } from "./HUDBackground"
 import { RefreshButton } from "./RefreshButton"
 import { SmallWishlistBanner } from "./SmallWishlistBanner"
 import { UpgradeBanner } from "./UpgradeBanner"
+import { UpgradeButton } from "./UpgradeButton"
 
 export default async function Dashboard({
   searchParams,
@@ -154,6 +155,9 @@ export default async function Dashboard({
             <EmailSettings currentEmail={userData?.alert_email ?? null} />
           </div>
 
+          {/* Go Pro button — free users only */}
+          {!isPro && <UpgradeButton />}
+
           {/* User info */}
           <div
             style={{
@@ -187,22 +191,21 @@ export default async function Dashboard({
             >
               {session.user?.name}
             </span>
-            {isPro && (
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: "9px",
-                  fontWeight: 700,
-                  letterSpacing: "0.1em",
-                  color: "var(--bg)",
-                  background: "var(--amber)",
-                  borderRadius: "4px",
-                  padding: "2px 5px",
-                }}
-              >
-                PRO
-              </span>
-            )}
+            <span
+              className="font-mono"
+              style={{
+                fontSize: "9px",
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                borderRadius: "4px",
+                padding: "2px 5px",
+                ...(isPro
+                  ? { color: "var(--bg)", background: "var(--amber)" }
+                  : { color: "var(--text-dim)", background: "var(--surface-3)", border: "1px solid var(--border)" }),
+              }}
+            >
+              {isPro ? "⚡ PRO" : "FREE"}
+            </span>
             <a
               href="/signout"
               style={{

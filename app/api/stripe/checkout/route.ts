@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
   const checkout = await getStripe().checkout.sessions.create({
     mode: "payment",
     client_reference_id: session.user.steamId,
+    metadata: { steam_id: session.user.steamId },
     line_items: [
       {
         price_data: {
