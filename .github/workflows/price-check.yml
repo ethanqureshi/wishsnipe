@@ -12,15 +12,9 @@ jobs:
     steps:
       - name: Trigger WishSnipe price check
         run: |
-          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
-            -X GET \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            https://wishsnipe.vercel.app/api/cron/check-prices)
-          BODY=$(echo "$RESPONSE" | sed -n '/HTTP_STATUS:/!p')
-          STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
-          echo "Response body: $BODY"
-          echo "HTTP status: $STATUS"
-          if [ "$STATUS" != "200" ]; then
-            echo "Price check failed with HTTP $STATUS"
+          RESPONSE=$(curl -s -X GET -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" https://wishsnipe.vercel.app/api/cron/check-prices)
+          echo "Response body: $RESPONSE"
+          if [[ "$RESPONSE" != *'"ok":true'* ]]; then
+            echo "Price check failed"
             exit 1
           fi
