@@ -11,16 +11,44 @@ export async function upsertUser(steamId: string, name: string, avatar: string) 
 
 export async function upsertGames(games: GameDetails[]) {
   if (games.length === 0) return
+  const now = new Date().toISOString()
   await supabaseAdmin.from("games").upsert(
     games.map((g) => ({
       appid: g.appid,
       name: g.name,
       header_image: g.headerImage,
       is_free: g.isFree,
-      updated_at: new Date().toISOString(),
+      current_price: g.currentPrice,
+      original_price: g.originalPrice,
+      discount_percent: g.discountPercent,
+      price_updated_at: now,
+      updated_at: now,
     })),
     { onConflict: "appid" }
   )
+}
+
+export async function getCachedGamePrices(appids: number[]): Promise<Map<number, GameDetails>> {
+  const map = new Map<number, GameDetails>()
+  if (appids.length === 0) return map
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const { data } = await supabaseAdmin
+    .from("games")
+    .select("appid, name, header_image, is_free, current_price, original_price, discount_percent")
+    .in("appid", appids)
+    .gt("price_updated_at", oneHourAgo)
+  for (const row of data ?? []) {
+    map.set(row.appid, {
+      appid: row.appid as number,
+      name: row.name as string,
+      headerImage: row.header_image as string,
+      currentPrice: row.current_price as number | null,
+      originalPrice: row.original_price as number | null,
+      discountPercent: (row.discount_percent as number) ?? 0,
+      isFree: row.is_free as boolean,
+    })
+  }
+  return map
 }
 
 export async function upsertWishlistItems(steamId: string, items: WishlistItem[]) {

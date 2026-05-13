@@ -9,6 +9,7 @@ import {
   insertPriceSnapshots,
   upsertHistoricalLows,
   getStoredHistoricalLows,
+  getCachedGamePrices,
 } from "@/lib/db"
 import { lookupItadIds, fetchHistoricalLows, getDealBadge, type DealBadge } from "@/lib/itad"
 import { supabaseAdmin } from "@/lib/supabase"
@@ -31,9 +32,9 @@ export default async function Dashboard() {
   const sorted = [...wishlistItems].sort((a, b) => a.priority - b.priority)
   const appids = sorted.slice(0, 20).map((i) => i.appid)
 
-  // Phase 2: Steam prices + ITAD cache + user data + thresholds — all parallel
-  const [games, stored, { data: userData }, { data: thresholdRows }] = await Promise.all([
-    appids.length > 0 ? fetchGameDetails(appids) : Promise.resolve([]),
+  // Phase 2: DB price cache + ITAD stored lows + user data + thresholds + wishlist write — all parallel
+  const [cachedPrices, stored, { data: userData }, { data: thresholdRows }] = await Promise.all([
+    getCachedGamePrices(appids),
     getStoredHistoricalLows(appids),
     supabaseAdmin.from("users").select("alert_email").eq("steam_id", steamId).single(),
     appids.length > 0
@@ -43,9 +44,11 @@ export default async function Dashboard() {
           .eq("steam_id", steamId)
           .in("appid", appids)
       : Promise.resolve({ data: [] }),
+    upsertWishlistItems(steamId, wishlistItems),
   ])
 
-  // Phase 3: DB writes + ITAD lookup — parallel
+  // Phase 3: Steam fetch (stale/missing only) + ITAD lookup — parallel
+  const staleAppids = appids.filter((id) => !cachedPrices.has(id))
   const staleThreshold = Date.now() - 24 * 60 * 60 * 1000
   const needsRefresh = appids.filter((id) => {
     const row = stored.get(id)
@@ -53,11 +56,17 @@ export default async function Dashboard() {
   })
   const itadAttempted = new Set<number>(needsRefresh)
 
-  const [itadIdMap] = await Promise.all([
+  const [freshGames, itadIdMap] = await Promise.all([
+    staleAppids.length > 0 ? fetchGameDetails(staleAppids) : Promise.resolve([]),
     needsRefresh.length > 0 ? lookupItadIds(needsRefresh) : Promise.resolve(new Map<number, string>()),
-    upsertWishlistItems(steamId, wishlistItems),
-    games.length > 0 ? upsertGames(games).then(() => insertPriceSnapshots(games)) : Promise.resolve(),
   ])
+
+  const games = [...cachedPrices.values(), ...freshGames]
+
+  // Write fresh Steam data back to DB (non-blocking for render)
+  const dbWrite = freshGames.length > 0
+    ? upsertGames(freshGames).then(() => insertPriceSnapshots(freshGames))
+    : Promise.resolve()
 
   // Phase 4: fetch historical lows for newly found ITAD IDs
   if (itadIdMap.size > 0) {
@@ -71,6 +80,7 @@ export default async function Dashboard() {
     if (toStore.length > 0) await upsertHistoricalLows(toStore)
   }
 
+  await dbWrite
   const freshLows = await getStoredHistoricalLows(appids)
   const itadChecked = new Set([...freshLows.keys(), ...itadAttempted])
 
