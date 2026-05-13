@@ -15,14 +15,7 @@ export async function POST(req: NextRequest) {
     metadata: { steam_id: session.user.steamId },
     line_items: [
       {
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: "WishSnipe Pro",
-            description: "Unlimited games tracked + instant price alerts",
-          },
-          unit_amount: 299,
-        },
+        price: process.env.STRIPE_PRICE_ID,
         quantity: 1,
       },
     ],
