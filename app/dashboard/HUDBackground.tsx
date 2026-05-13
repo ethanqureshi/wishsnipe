@@ -23,14 +23,14 @@ export function HUDBackground() {
     resize()
     window.addEventListener("resize", resize)
 
-    const particles: Particle[] = Array.from({ length: 30 }, (_, i) => ({
+    const particles: Particle[] = Array.from({ length: 45 }, (_, i) => ({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
       vx: (Math.random() - 0.5) * 0.25,
       vy: (Math.random() - 0.5) * 0.25,
       type: i % 6 === 0 ? "cross" : i % 9 === 0 ? "hex" : "dot",
-      size: Math.random() * 5 + 2,
-      opacity: Math.random() * 0.055 + 0.015,
+      size: Math.random() * 6 + 3,
+      opacity: Math.random() * 0.12 + 0.07,
     }))
 
     function drawCross(x: number, y: number, s: number) {
@@ -61,7 +61,7 @@ export function HUDBackground() {
         ctx!.save()
         ctx!.strokeStyle = `rgba(245,158,11,${p.opacity})`
         ctx!.fillStyle = `rgba(245,158,11,${p.opacity})`
-        ctx!.lineWidth = 0.6
+        ctx!.lineWidth = 0.8
         if (p.type === "dot") {
           ctx!.beginPath(); ctx!.arc(p.x, p.y, p.size * 0.5, 0, Math.PI * 2); ctx!.fill()
         } else if (p.type === "cross") {
