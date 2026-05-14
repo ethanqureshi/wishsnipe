@@ -153,11 +153,15 @@ export default async function Dashboard({
             href="/faq"
             className="font-mono"
             style={{
-              color: "var(--text-dim)",
+              color: "var(--text-muted)",
               fontSize: "10px",
               letterSpacing: "0.08em",
               textDecoration: "none",
               flexShrink: 0,
+              padding: "4px 10px",
+              border: "1px solid var(--border-strong)",
+              borderRadius: "6px",
+              transition: "border-color 0.2s, color 0.2s",
             }}
           >
             FAQ
@@ -375,12 +379,6 @@ const BADGE_CONFIG: Record<
     text: "#fbbf24",
     glow: "rgba(251,191,36,0.35)",
     shadow: "rgba(251,191,36,0.15)",
-  },
-  "Never Been Cheaper ⚡": {
-    bg: "rgba(192,132,252,0.12)",
-    text: "#c084fc",
-    glow: "rgba(192,132,252,0.35)",
-    shadow: "rgba(192,132,252,0.15)",
   },
   "Near Low 💚": {
     bg: "rgba(52,211,153,0.10)",

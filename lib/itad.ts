@@ -83,7 +83,6 @@ export async function fetchHistoricalLows(itadIds: string[]): Promise<Map<string
 
 export type DealBadge =
   | "Historical Low 🎯"
-  | "Never Been Cheaper ⚡"
   | "Near Low 💚"
   | "Good Deal 👍"
   | "Average Deal 🟡"
@@ -97,8 +96,7 @@ export function getDealBadge(
 ): DealBadge {
   if (currentPrice === null) return ""
   if (historicalLow !== null) {
-    if (currentPrice < historicalLow) return "Never Been Cheaper ⚡"
-    if (currentPrice === historicalLow) return "Historical Low 🎯"
+    if (currentPrice <= historicalLow) return "Historical Low 🎯"
     if (currentPrice <= Math.round(historicalLow * 1.1)) return "Near Low 💚"
     if (discountPct >= 40) return "Good Deal 👍"
     if (discountPct > 0) return "Average Deal 🟡"

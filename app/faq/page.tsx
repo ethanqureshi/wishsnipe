@@ -7,13 +7,6 @@ const BADGES = [
     desc: "Cheapest this game has ever been. Buy it.",
   },
   {
-    label: "Never Been Cheaper ⚡",
-    bg: "rgba(192,132,252,0.12)",
-    text: "#c084fc",
-    border: "rgba(192,132,252,0.35)",
-    desc: "Price just dropped below any previously recorded low. Rare.",
-  },
-  {
     label: "Near Low 💚",
     bg: "rgba(52,211,153,0.10)",
     text: "#34d399",
