@@ -154,11 +154,11 @@ export default async function Dashboard({
             className="font-mono"
             style={{
               color: "var(--text-muted)",
-              fontSize: "10px",
-              letterSpacing: "0.08em",
+              fontSize: "12px",
+              letterSpacing: "0.06em",
               textDecoration: "none",
               flexShrink: 0,
-              padding: "4px 10px",
+              padding: "5px 14px",
               border: "1px solid var(--border-strong)",
               borderRadius: "6px",
               transition: "border-color 0.2s, color 0.2s",
