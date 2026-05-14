@@ -188,13 +188,15 @@ export default async function Home({
         </p>
       </div>
 
-      {/* Bottom version tag */}
+      {/* Bottom links */}
       <div
-        aria-hidden
         style={{
           position: "fixed",
           bottom: "24px",
           right: "24px",
+          display: "flex",
+          alignItems: "center",
+          gap: "14px",
           fontSize: "10px",
           color: "var(--text-dim)",
           letterSpacing: "0.1em",
@@ -202,7 +204,9 @@ export default async function Home({
           zIndex: 3,
         }}
       >
-        WISHSNIPE v1.0
+        <a href="/faq" style={{ color: "var(--text-dim)", textDecoration: "none" }}>FAQ</a>
+        <span aria-hidden>·</span>
+        <span>WISHSNIPE v1.0</span>
       </div>
     </main>
   )

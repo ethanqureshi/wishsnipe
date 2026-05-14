@@ -149,6 +149,19 @@ export default async function Dashboard({
           >
             WISHSNIPE
           </span>
+          <a
+            href="/faq"
+            className="font-mono"
+            style={{
+              color: "var(--text-dim)",
+              fontSize: "10px",
+              letterSpacing: "0.08em",
+              textDecoration: "none",
+              flexShrink: 0,
+            }}
+          >
+            FAQ
+          </a>
 
           {/* Email settings */}
           <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
@@ -544,30 +557,27 @@ function GameCard({
           )}
         </div>
 
-        {/* Deal badge */}
-        {hasItadData ? (
-          badge ? (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                padding: "3px 8px",
-                background: cfg.bg,
-                border: `1px solid ${cfg.glow}`,
-                borderRadius: "5px",
-                fontSize: "11px",
-                fontWeight: 600,
-                color: cfg.text,
-                letterSpacing: "0.01em",
-                alignSelf: "flex-start",
-                fontFamily: "var(--font-body)",
-              }}
-            >
-              {badge}
-            </div>
-          ) : null
+        {/* Deal badge — always shown */}
+        {badge ? (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "3px 8px",
+              background: cfg.bg,
+              border: `1px solid ${cfg.glow}`,
+              borderRadius: "5px",
+              fontSize: "11px",
+              fontWeight: 600,
+              color: cfg.text,
+              letterSpacing: "0.01em",
+              alignSelf: "flex-start",
+              fontFamily: "var(--font-body)",
+            }}
+          >
+            {badge}
+          </div>
         ) : (
-          // No ITAD data — Steam-only fallback badge
           <div
             style={{
               display: "inline-flex",
@@ -589,50 +599,28 @@ function GameCard({
         )}
 
         {/* Historical low */}
-        <div
-          style={{
-            fontSize: "11px",
-            color: "var(--text-muted)",
-            fontFamily: "var(--font-mono)",
-            letterSpacing: "0.01em",
-            marginTop: "auto",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-          }}
-        >
-          {!hasItadData ? (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                padding: "2px 6px",
-                background: "rgba(100,110,140,0.07)",
-                border: "1px solid rgba(100,110,140,0.18)",
-                borderRadius: "4px",
-                color: "#3a4060",
-                fontSize: "10px",
-                fontWeight: 600,
-                letterSpacing: "0.06em",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              NO HISTORY
+        {historicalLow !== null && (
+          <div
+            style={{
+              fontSize: "11px",
+              color: "var(--text-muted)",
+              fontFamily: "var(--font-mono)",
+              letterSpacing: "0.01em",
+              marginTop: "auto",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <span style={{ color: "var(--text-dim)" }}>ALL-TIME LOW </span>
+            <span style={{ color: "var(--col-hist)" }}>
+              {formatPrice(historicalLow)}
             </span>
-          ) : historicalLow !== null ? (
-            <>
-              <span style={{ color: "var(--text-dim)" }}>ALL-TIME LOW </span>
-              <span style={{ color: "var(--col-hist)" }}>
-                {formatPrice(historicalLow)}
-              </span>
-              {historicalLowShop && (
-                <span style={{ color: "var(--text-dim)" }}> · {historicalLowShop}</span>
-              )}
-            </>
-          ) : (
-            <span style={{ color: "var(--text-dim)" }}>No price history</span>
-          )}
-        </div>
+            {historicalLowShop && (
+              <span style={{ color: "var(--text-dim)" }}> · {historicalLowShop}</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Alert input */}
